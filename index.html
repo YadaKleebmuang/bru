@@ -189,22 +189,22 @@
           </div>
           
           <!-- Charts Row 2 -->
-          <div class="modern-card p-6 flex flex-col h-80">
+          <div class="modern-card p-6 flex flex-col min-h-[400px]">
               <h3 class="font-bold text-slate-800 text-lg mb-4">จำนวนผู้สมัครและผู้ผ่าน แยกตามคณะ</h3>
               <div class="relative flex-grow w-full"><canvas id="facultyChart"></canvas></div>
           </div>
           
           <!-- Charts Row 3 -->
           <div class="grid grid-cols-1 lg:grid-cols-2 gap-6">
-              <div class="modern-card p-6 flex flex-col h-[320px]">
+              <div class="modern-card p-6 flex flex-col min-h-[380px]">
                   <h3 class="font-bold text-slate-800 text-lg mb-1">ข้อมูลเชิงพื้นที่ (จำลอง)</h3>
                   <p class="text-xs text-slate-400 mb-4">Top 5 จังหวัดที่มีผู้สมัครสูงสุด</p>
                   <div class="relative flex-grow w-full"><canvas id="provinceChart"></canvas></div>
               </div>
               
-              <div class="modern-card p-6 flex flex-col h-[320px] justify-center items-center">
-                  <h3 class="font-bold text-slate-800 text-lg w-full text-left mb-2">สัดส่วนประเภทการรับสมัคร</h3>
-                  <div class="relative w-full flex-grow flex justify-center"><canvas id="typeChart"></canvas></div>
+              <div class="modern-card p-6 flex flex-col min-h-[380px]">
+                  <h3 class="font-bold text-slate-800 text-lg w-full text-left mb-4">สัดส่วนประเภทการรับสมัคร</h3>
+                  <div class="relative w-full flex-grow"><canvas id="typeChart"></canvas></div>
               </div>
           </div>
       </div>
@@ -566,6 +566,7 @@
             },
             options: {
                 responsive: true, maintainAspectRatio: false, cutout: '75%',
+                layout: { padding: 20 },
                 plugins: { legend: { position: 'bottom', labels: { usePointStyle: true, boxWidth: 8, padding: 20 } } }
             }
         });
