@@ -1,0 +1,610 @@
+<!DOCTYPE html>
+<html lang="th">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>ระบบสารสนเทศข้อมูลการสมัครเรียน - มหาวิทยาลัยราชภัฏบุรีรัมย์</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/PapaParse/5.4.1/papaparse.min.js"></script>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Sarabun:wght@300;400;500;600;700;800&display=swap" rel="stylesheet">
+    
+    <style>
+        body { 
+            font-family: 'Sarabun', sans-serif; 
+            background-color: #f8fafc; 
+            color: #334155;
+        }
+        .modern-card {
+            background-color: #ffffff;
+            border-radius: 1.25rem;
+            box-shadow: 0 10px 40px -10px rgba(0, 0, 0, 0.04);
+            border: 1px solid rgba(241, 245, 249, 1);
+            transition: all 0.3s ease;
+        }
+        .gradient-card {
+            border-radius: 1.25rem;
+            box-shadow: 0 10px 20px -5px rgba(0,0,0,0.1);
+            position: relative;
+            overflow: hidden;
+        }
+        ::-webkit-scrollbar { width: 6px; height: 6px; }
+        ::-webkit-scrollbar-track { background: transparent; }
+        ::-webkit-scrollbar-thumb { background: #cbd5e1; border-radius: 10px; }
+        ::-webkit-scrollbar-thumb:hover { background: #94a3b8; }
+        
+        .funnel-step {
+            position: relative;
+            height: 40px;
+            margin-bottom: 12px;
+            background-color: #f1f5f9;
+            border-radius: 8px;
+            overflow: hidden;
+        }
+        .funnel-fill {
+            height: 100%;
+            border-radius: 8px;
+            transition: width 1s ease-in-out;
+            display: flex;
+            align-items: center;
+            padding-left: 12px;
+            color: white;
+            font-weight: 600;
+            font-size: 0.875rem;
+        }
+        .leaderboard-item {
+            border-bottom: 1px solid #f1f5f9;
+        }
+        .leaderboard-item:last-child {
+            border-bottom: none;
+        }
+    </style>
+</head>
+<body class="antialiased h-screen overflow-hidden flex flex-col">
+  
+  <header class="bg-white px-8 py-4 shadow-[0_4px_20px_-10px_rgba(0,0,0,0.05)] z-20 flex justify-between items-center relative flex-shrink-0">
+      <div class="flex items-center space-x-4">
+          <div class="w-12 h-12 bg-gradient-to-br from-purple-600 to-purple-900 rounded-2xl flex items-center justify-center shadow-lg shadow-purple-200 transform rotate-3">
+              <span class="font-bold text-white text-lg -rotate-3 tracking-wider">BRU</span>
+          </div>
+          <div>
+              <h1 class="text-xl font-bold text-slate-800 leading-tight">Executive Dashboard การรับสมัครนักศึกษา</h1>
+              <p class="text-sm text-slate-500 font-medium">ระบบสนับสนุนการตัดสินใจผู้บริหาร (DSS)</p>
+          </div>
+      </div>
+      <div class="hidden md:flex space-x-2 bg-slate-50 p-1.5 rounded-xl border border-slate-100">
+          <button class="bg-white text-purple-700 px-6 py-2 rounded-lg text-sm font-bold shadow-sm">ภาพรวมกลยุทธ์</button>
+      </div>
+  </header>
+
+  <!-- Loading State -->
+  <div id="loading" class="fixed inset-0 bg-slate-50/90 z-50 flex flex-col items-center justify-center backdrop-blur-sm">
+      <div class="relative w-20 h-20">
+          <div class="absolute inset-0 rounded-full border-t-4 border-purple-600 animate-spin"></div>
+      </div>
+      <span class="text-xl font-bold text-slate-700 mt-6 animate-pulse">กำลังประมวลผลข้อมูล...</span>
+  </div>
+
+  <main class="flex-grow flex flex-col xl:flex-row p-4 md:p-6 gap-6 overflow-y-auto" id="dashboard" style="display: none;">
+      
+      <!-- Left Content Area -->
+      <div class="flex-1 flex flex-col gap-6 min-w-0">
+          
+          <!-- Metric Cards with YoY -->
+          <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-5">
+              <div class="gradient-card bg-gradient-to-br from-indigo-800 to-purple-900 text-white p-5">
+                  <p class="text-purple-200 font-medium text-sm">ยอดผู้สมัครรวมทั้งหมด</p>
+                  <div class="mt-2 flex items-baseline space-x-2">
+                      <h2 class="text-4xl font-extrabold" id="total-applicants">0</h2>
+                  </div>
+                  <div class="mt-3 text-xs font-medium px-2 py-1 bg-white/10 rounded inline-block" id="yoy-applicants">
+                      -
+                  </div>
+              </div>
+              
+              <div class="gradient-card bg-gradient-to-br from-purple-600 to-fuchsia-600 text-white p-5">
+                  <p class="text-purple-100 font-medium text-sm">ผู้ผ่านการคัดเลือก</p>
+                  <div class="mt-2 flex items-baseline space-x-2">
+                      <h2 class="text-4xl font-extrabold" id="total-admitted">0</h2>
+                  </div>
+                  <div class="mt-3 text-xs font-medium px-2 py-1 bg-white/10 rounded inline-block" id="yoy-admitted">
+                      -
+                  </div>
+              </div>
+              
+              <div class="gradient-card bg-gradient-to-br from-yellow-500 to-orange-500 text-white p-5">
+                  <p class="text-orange-100 font-medium text-sm">อัตราการผ่านคัดเลือก</p>
+                  <div class="mt-2 flex items-baseline space-x-2">
+                      <h2 class="text-4xl font-extrabold" id="avg-pass-rate">0%</h2>
+                  </div>
+                  <div class="mt-3 text-xs font-medium px-2 py-1 bg-white/10 rounded inline-block" id="yoy-passrate">
+                      -
+                  </div>
+              </div>
+              
+              <div class="gradient-card bg-gradient-to-br from-slate-700 to-slate-900 text-white p-5">
+                  <p class="text-slate-300 font-medium text-sm">จำนวนคณะที่เปิดรับ</p>
+                  <div class="mt-2 flex items-baseline space-x-2">
+                      <h2 class="text-4xl font-extrabold" id="total-faculties">0</h2>
+                  </div>
+                  <div class="mt-3 text-xs text-slate-400">
+                      จากตัวกรองที่เลือก
+                  </div>
+              </div>
+          </div>
+
+          <!-- Charts Row 1 -->
+          <div class="grid grid-cols-1 lg:grid-cols-2 gap-6">
+              <div class="modern-card p-6 flex flex-col h-80">
+                  <h3 class="font-bold text-slate-800 text-lg mb-4">แนวโน้มผู้สมัครและผู้ผ่านรายปี</h3>
+                  <div class="relative flex-grow w-full"><canvas id="trendChart"></canvas></div>
+              </div>
+              
+              <div class="modern-card p-6 flex flex-col h-80">
+                  <h3 class="font-bold text-slate-800 text-lg mb-1">Admission Funnel (ข้อมูลจำลอง)</h3>
+                  <p class="text-xs text-slate-400 mb-4">วิเคราะห์อัตราการหลุดร่วงของผู้สมัคร (Conversion Rate)</p>
+                  
+                  <div class="flex flex-col justify-center flex-grow">
+                      <!-- Mock Funnel UI -->
+                      <div>
+                          <div class="flex justify-between text-xs font-medium text-slate-500 mb-1">
+                              <span>1. ผู้สมัครทั้งหมด (Applied)</span>
+                              <span id="funnel-1-text">0</span>
+                          </div>
+                          <div class="funnel-step w-full">
+                              <div class="funnel-fill bg-indigo-500" style="width: 100%;">100%</div>
+                          </div>
+                      </div>
+                      <div>
+                          <div class="flex justify-between text-xs font-medium text-slate-500 mb-1">
+                              <span>2. ผู้มีสิทธิ์สอบ (Eligible - จำลอง)</span>
+                              <span id="funnel-2-text">0</span>
+                          </div>
+                          <div class="funnel-step w-full">
+                              <div class="funnel-fill bg-purple-500" id="funnel-2-bar" style="width: 85%;">85%</div>
+                          </div>
+                      </div>
+                      <div>
+                          <div class="flex justify-between text-xs font-medium text-slate-500 mb-1">
+                              <span>3. ผู้ผ่านคัดเลือก (Admitted)</span>
+                              <span id="funnel-3-text">0</span>
+                          </div>
+                          <div class="funnel-step w-full">
+                              <div class="funnel-fill bg-fuchsia-500" id="funnel-3-bar" style="width: 40%;">40%</div>
+                          </div>
+                      </div>
+                      <div>
+                          <div class="flex justify-between text-xs font-medium text-slate-500 mb-1">
+                              <span>4. ผู้ยืนยันสิทธิ์ (Enrolled - จำลอง)</span>
+                              <span id="funnel-4-text">0</span>
+                          </div>
+                          <div class="funnel-step w-full">
+                              <div class="funnel-fill bg-orange-400" id="funnel-4-bar" style="width: 25%;">25%</div>
+                          </div>
+                      </div>
+                  </div>
+              </div>
+          </div>
+          
+          <!-- Charts Row 2 -->
+          <div class="modern-card p-6 flex flex-col h-80">
+              <h3 class="font-bold text-slate-800 text-lg mb-4">จำนวนผู้สมัครและผู้ผ่าน แยกตามคณะ</h3>
+              <div class="relative flex-grow w-full"><canvas id="facultyChart"></canvas></div>
+          </div>
+          
+          <!-- Charts Row 3 -->
+          <div class="grid grid-cols-1 lg:grid-cols-2 gap-6">
+              <div class="modern-card p-6 flex flex-col h-[320px]">
+                  <h3 class="font-bold text-slate-800 text-lg mb-1">ข้อมูลเชิงพื้นที่ (จำลอง)</h3>
+                  <p class="text-xs text-slate-400 mb-4">Top 5 จังหวัดที่มีผู้สมัครสูงสุด</p>
+                  <div class="relative flex-grow w-full"><canvas id="provinceChart"></canvas></div>
+              </div>
+              
+              <div class="modern-card p-6 flex flex-col h-[320px] justify-center items-center">
+                  <h3 class="font-bold text-slate-800 text-lg w-full text-left mb-2">สัดส่วนประเภทการรับสมัคร</h3>
+                  <div class="relative w-full flex-grow flex justify-center"><canvas id="typeChart"></canvas></div>
+              </div>
+          </div>
+      </div>
+
+      <!-- Right Sidebar -->
+      <div class="w-full xl:w-[340px] flex flex-col gap-6 flex-shrink-0">
+          
+          <!-- Interactive Filters -->
+          <div class="modern-card p-6 bg-slate-800 text-white border-none shadow-xl">
+              <div class="flex items-center space-x-2 mb-4">
+                  <svg class="w-5 h-5 text-purple-400" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M3 4a1 1 0 011-1h16a1 1 0 011 1v2.586a1 1 0 01-.293.707l-6.414 6.414a1 1 0 00-.293.707V17l-4 4v-6.586a1 1 0 00-.293-.707L3.293 7.293A1 1 0 013 6.586V4z"></path></svg>
+                  <h3 class="font-bold text-lg">Interactive Filters</h3>
+              </div>
+              
+              <div class="space-y-4">
+                  <div>
+                      <label class="block text-xs font-medium text-slate-400 mb-1">ปีการศึกษา (Academic Year)</label>
+                      <select id="filter-year" class="w-full bg-slate-700 border border-slate-600 rounded-lg p-2.5 text-sm text-white focus:outline-none focus:border-purple-400 cursor-pointer">
+                          <option value="all">ทั้งหมด (All Years)</option>
+                      </select>
+                  </div>
+                  <div>
+                      <label class="block text-xs font-medium text-slate-400 mb-1">คณะ (Faculty)</label>
+                      <select id="filter-faculty" class="w-full bg-slate-700 border border-slate-600 rounded-lg p-2.5 text-sm text-white focus:outline-none focus:border-purple-400 cursor-pointer">
+                          <option value="all">ทั้งหมด (All Faculties)</option>
+                      </select>
+                  </div>
+                  <div>
+                      <label class="block text-xs font-medium text-slate-400 mb-1">ประเภทการรับ (Type)</label>
+                      <select id="filter-type" class="w-full bg-slate-700 border border-slate-600 rounded-lg p-2.5 text-sm text-white focus:outline-none focus:border-purple-400 cursor-pointer">
+                          <option value="all">ทั้งหมด (All Types)</option>
+                      </select>
+                  </div>
+              </div>
+          </div>
+          
+          <!-- Competition Leaderboard -->
+          <div class="modern-card p-6 flex-grow flex flex-col">
+              <div class="flex items-center space-x-2 mb-1">
+                  <span class="text-xl">🔥</span>
+                  <h3 class="font-bold text-slate-800 text-base">Top 5 อัตราการแข่งขันสูงสุด</h3>
+              </div>
+              <p class="text-xs text-slate-400 mb-4">วัดจาก จำนวนผู้สมัครต่อการรับ 1 ที่นั่ง</p>
+              
+              <div id="leaderboard-container" class="flex-grow space-y-3">
+                  <!-- JS will populate this -->
+              </div>
+          </div>
+          
+      </div>
+  </main>
+
+  <script>
+    const CSV_URL = 'https://docs.google.com/spreadsheets/d/e/2PACX-1vSNR98FpOubXuECZHxezyLV5hmm4NzokZZJuyl7r_S8UUwjIugDTJ8C_xjLECRzoRhcvdpnoFZiGSB_/pub?gid=1269439941&single=true&output=csv';
+
+    let rawData = [];
+    let chartInstances = {}; // Store chart instances for destroying before re-rendering
+
+    Chart.defaults.font.family = "'Sarabun', sans-serif";
+    Chart.defaults.color = '#94a3b8';
+    Chart.defaults.scale.grid.color = '#f8fafc'; 
+    Chart.defaults.plugins.tooltip.backgroundColor = 'rgba(15, 23, 42, 0.9)';
+    Chart.defaults.plugins.tooltip.titleFont = { size: 14, family: "'Sarabun', sans-serif", weight: 'bold' };
+    Chart.defaults.plugins.tooltip.bodyFont = { size: 13, family: "'Sarabun', sans-serif" };
+    Chart.defaults.plugins.tooltip.padding = 12;
+    Chart.defaults.plugins.tooltip.cornerRadius = 8;
+
+    async function fetchData() {
+        try {
+            const response = await fetch(CSV_URL);
+            const csvText = await response.text();
+            Papa.parse(csvText, {
+                header: true,
+                skipEmptyLines: true,
+                complete: function(results) {
+                    rawData = results.data.filter(row => row['ปีการศึกษา'] && row['ชื่อคณะ']);
+                    initFilters();
+                    updateDashboard();
+                }
+            });
+        } catch (error) {
+            console.error('Error fetching data:', error);
+        }
+    }
+
+    function initFilters() {
+        const years = new Set();
+        const faculties = new Set();
+        const types = new Set();
+
+        rawData.forEach(row => {
+            years.add(row['ปีการศึกษา']);
+            faculties.add(row['ชื่อคณะ']);
+            types.add(row['ประเภทการสมัคร']);
+        });
+
+        populateSelect('filter-year', Array.from(years).sort().reverse());
+        populateSelect('filter-faculty', Array.from(faculties).sort());
+        populateSelect('filter-type', Array.from(types).sort());
+
+        // Event Listeners for interactive filters
+        document.getElementById('filter-year').addEventListener('change', updateDashboard);
+        document.getElementById('filter-faculty').addEventListener('change', updateDashboard);
+        document.getElementById('filter-type').addEventListener('change', updateDashboard);
+    }
+
+    function populateSelect(id, items) {
+        const select = document.getElementById(id);
+        items.forEach(item => {
+            const option = document.createElement('option');
+            option.value = item;
+            option.text = item;
+            select.appendChild(option);
+        });
+    }
+
+    function calculateYoY(currentData, allData, selectedYear) {
+        // Find previous year logic
+        let currentYearSum = 0;
+        let prevYearSum = 0;
+        let currentPassSum = 0;
+        let prevPassSum = 0;
+
+        let targetYear, prevYear;
+
+        if (selectedYear === 'all') {
+            const years = [...new Set(allData.map(d => d['ปีการศึกษา']))].sort().reverse();
+            targetYear = years[0];
+            prevYear = years[1];
+        } else {
+            targetYear = selectedYear;
+            prevYear = (parseInt(selectedYear) - 1).toString();
+        }
+
+        // Apply same faculty/type filters to prev year data
+        const facFilter = document.getElementById('filter-faculty').value;
+        const typeFilter = document.getElementById('filter-type').value;
+
+        allData.forEach(row => {
+            if (facFilter !== 'all' && row['ชื่อคณะ'] !== facFilter) return;
+            if (typeFilter !== 'all' && row['ประเภทการสมัคร'] !== typeFilter) return;
+
+            const apps = parseInt(row['จำนวนผู้สมัคร']) || 0;
+            const admitted = parseInt(row['จำนวนผู้ผ่าน']) || 0;
+
+            if (row['ปีการศึกษา'] === targetYear) {
+                currentYearSum += apps;
+                currentPassSum += admitted;
+            } else if (row['ปีการศึกษา'] === prevYear) {
+                prevYearSum += apps;
+                prevPassSum += admitted;
+            }
+        });
+
+        const updateYoYElement = (elementId, current, prev, isPassRate = false) => {
+            const el = document.getElementById(elementId);
+            if (!prev) {
+                el.innerHTML = `<span class="text-slate-400">ไม่มีข้อมูลปีก่อนหน้า</span>`;
+                return;
+            }
+            
+            let diff;
+            if (isPassRate) {
+                diff = current - prev; // Percentage points diff
+            } else {
+                diff = ((current - prev) / prev) * 100; // Growth %
+            }
+
+            if (diff > 0) {
+                el.innerHTML = `<span class="text-emerald-400 font-bold">▲ +${diff.toFixed(1)}${isPassRate? '%pt' : '%'}</span> <span class="text-slate-300">YoY</span>`;
+            } else if (diff < 0) {
+                el.innerHTML = `<span class="text-rose-400 font-bold">▼ ${diff.toFixed(1)}${isPassRate? '%pt' : '%'}</span> <span class="text-slate-300">YoY</span>`;
+            } else {
+                el.innerHTML = `<span class="text-slate-300">คงที่ YoY</span>`;
+            }
+        };
+
+        updateYoYElement('yoy-applicants', currentYearSum, prevYearSum);
+        updateYoYElement('yoy-admitted', currentPassSum, prevPassSum);
+        
+        const currRate = currentYearSum ? (currentPassSum/currentYearSum)*100 : 0;
+        const prevRate = prevYearSum ? (prevPassSum/prevYearSum)*100 : 0;
+        updateYoYElement('yoy-passrate', currRate, prevRate, true);
+    }
+
+    function updateDashboard() {
+        document.getElementById('loading').style.display = 'none';
+        document.getElementById('dashboard').style.display = 'flex';
+
+        const filterYear = document.getElementById('filter-year').value;
+        const filterFaculty = document.getElementById('filter-faculty').value;
+        const filterType = document.getElementById('filter-type').value;
+
+        let filteredData = rawData.filter(row => {
+            return (filterYear === 'all' || row['ปีการศึกษา'] === filterYear) &&
+                   (filterFaculty === 'all' || row['ชื่อคณะ'] === filterFaculty) &&
+                   (filterType === 'all' || row['ประเภทการสมัคร'] === filterType);
+        });
+
+        // 1. Process Aggregates
+        let totalApplicants = 0;
+        let totalAdmitted = 0;
+        const applicantsByFaculty = {};
+        const admittedByFaculty = {};
+        const typeCount = {};
+        const yearlyData = {};
+
+        filteredData.forEach(row => {
+            const apps = parseInt(row['จำนวนผู้สมัคร']) || 0;
+            const adm = parseInt(row['จำนวนผู้ผ่าน']) || 0;
+            const fac = row['ชื่อคณะ'];
+            const type = row['ประเภทการสมัคร'];
+            const yr = row['ปีการศึกษา'];
+
+            totalApplicants += apps;
+            totalAdmitted += adm;
+
+            applicantsByFaculty[fac] = (applicantsByFaculty[fac] || 0) + apps;
+            admittedByFaculty[fac] = (admittedByFaculty[fac] || 0) + adm;
+            typeCount[type] = (typeCount[type] || 0) + apps;
+
+            if (!yearlyData[yr]) yearlyData[yr] = { apps: 0, adm: 0 };
+            yearlyData[yr].apps += apps;
+            yearlyData[yr].adm += adm;
+        });
+
+        // 2. Update Metric Cards
+        document.getElementById('total-applicants').innerText = totalApplicants.toLocaleString();
+        document.getElementById('total-admitted').innerText = totalAdmitted.toLocaleString();
+        document.getElementById('avg-pass-rate').innerText = totalApplicants ? ((totalAdmitted/totalApplicants)*100).toFixed(1) + '%' : '0%';
+        document.getElementById('total-faculties').innerText = Object.keys(applicantsByFaculty).length;
+
+        // YoY Calculation
+        calculateYoY(filteredData, rawData, filterYear);
+
+        // 3. Update Competition Leaderboard
+        const facStats = Object.keys(applicantsByFaculty).map(fac => {
+            const apps = applicantsByFaculty[fac];
+            const adm = admittedByFaculty[fac];
+            const ratio = adm > 0 ? (apps / adm).toFixed(1) : apps;
+            const passRate = apps > 0 ? ((adm/apps)*100).toFixed(1) : 0;
+            return { fac, apps, adm, ratio, passRate };
+        });
+        
+        facStats.sort((a,b) => b.ratio - a.ratio); // Sort highest competition first
+        const top5 = facStats.slice(0, 5);
+        
+        const lbContainer = document.getElementById('leaderboard-container');
+        lbContainer.innerHTML = '';
+        top5.forEach((item, index) => {
+            const medals = ['🥇', '🥈', '🥉', '4️⃣', '5️⃣'];
+            lbContainer.innerHTML += `
+                <div class="leaderboard-item py-2 flex justify-between items-center">
+                    <div class="flex items-center space-x-3 w-2/3">
+                        <span class="text-xl">${medals[index]}</span>
+                        <div class="truncate">
+                            <p class="text-sm font-bold text-slate-700 truncate" title="${item.fac}">${item.fac}</p>
+                            <p class="text-xs text-slate-500">สอบติด ${item.passRate}%</p>
+                        </div>
+                    </div>
+                    <div class="text-right">
+                        <span class="text-sm font-black text-rose-600 bg-rose-50 px-2 py-0.5 rounded border border-rose-100">1 : ${item.ratio}</span>
+                    </div>
+                </div>
+            `;
+        });
+
+        // 4. Update Funnel Chart (Mock Data based on Totals)
+        document.getElementById('funnel-1-text').innerText = totalApplicants.toLocaleString();
+        
+        const eligible = Math.round(totalApplicants * 0.85); // Mock 85% eligible
+        document.getElementById('funnel-2-text').innerText = eligible.toLocaleString();
+        document.getElementById('funnel-2-bar').style.width = '85%';
+        document.getElementById('funnel-2-bar').innerText = '85%';
+        
+        document.getElementById('funnel-3-text').innerText = totalAdmitted.toLocaleString();
+        const admPct = totalApplicants ? Math.round((totalAdmitted/totalApplicants)*100) : 0;
+        document.getElementById('funnel-3-bar').style.width = `${admPct}%`;
+        document.getElementById('funnel-3-bar').innerText = `${admPct}%`;
+        
+        const enrolled = Math.round(totalAdmitted * 0.70); // Mock 70% of admitted actually enroll
+        document.getElementById('funnel-4-text').innerText = enrolled.toLocaleString();
+        const enrPct = totalApplicants ? Math.round((enrolled/totalApplicants)*100) : 0;
+        document.getElementById('funnel-4-bar').style.width = `${Math.max(enrPct, 5)}%`; // Keep min width
+        document.getElementById('funnel-4-bar').innerText = `${enrPct}%`;
+
+
+        // -- Destroy old charts --
+        if(chartInstances.trend) chartInstances.trend.destroy();
+        if(chartInstances.faculty) chartInstances.faculty.destroy();
+        if(chartInstances.type) chartInstances.type.destroy();
+        if(chartInstances.province) chartInstances.province.destroy();
+
+        // 5. Render Trend Chart
+        const yrs = Object.keys(yearlyData).sort();
+        const ctxTrend = document.getElementById('trendChart').getContext('2d');
+        chartInstances.trend = new Chart(ctxTrend, {
+            type: 'line',
+            data: {
+                labels: yrs,
+                datasets: [
+                    {
+                        label: 'ผู้สมัคร',
+                        data: yrs.map(y => yearlyData[y].apps),
+                        borderColor: '#7c3aed', borderWidth: 3, tension: 0.4,
+                        pointBackgroundColor: '#fff', pointBorderColor: '#7c3aed', pointRadius: 4
+                    },
+                    {
+                        label: 'ผู้ผ่าน',
+                        data: yrs.map(y => yearlyData[y].adm),
+                        borderColor: '#eab308', borderWidth: 3, tension: 0.4,
+                        pointBackgroundColor: '#fff', pointBorderColor: '#eab308', pointRadius: 4
+                    }
+                ]
+            },
+            options: {
+                responsive: true, maintainAspectRatio: false,
+                plugins: { legend: { display: false } },
+                scales: {
+                    x: { grid: { display: false } },
+                    y: { grid: { color: '#f1f5f9' }, border: { display: false } }
+                }
+            }
+        });
+
+        // 6. Render Faculty Chart
+        const facs = Object.keys(applicantsByFaculty).sort((a,b) => applicantsByFaculty[b] - applicantsByFaculty[a]).slice(0, 10); // Show top 10 to avoid crowding
+        const ctxFac = document.getElementById('facultyChart').getContext('2d');
+        chartInstances.faculty = new Chart(ctxFac, {
+            type: 'bar',
+            data: {
+                labels: facs,
+                datasets: [
+                    { label: 'ผู้สมัคร', data: facs.map(f => applicantsByFaculty[f]), backgroundColor: '#7c3aed', borderRadius: 4 },
+                    { label: 'ผู้ผ่าน', data: facs.map(f => admittedByFaculty[f]), backgroundColor: '#eab308', borderRadius: 4 }
+                ]
+            },
+            options: {
+                responsive: true, maintainAspectRatio: false,
+                plugins: { legend: { position: 'top', align: 'end', labels: { usePointStyle: true, boxWidth: 6 } } },
+                scales: {
+                    x: { grid: { display: false }, ticks: { maxRotation: 45, minRotation: 45, font: {size:11} } },
+                    y: { grid: { color: '#f1f5f9' }, border: { display: false } }
+                }
+            }
+        });
+
+        // 7. Render Type Doughnut
+        const ctxType = document.getElementById('typeChart').getContext('2d');
+        chartInstances.type = new Chart(ctxType, {
+            type: 'doughnut',
+            data: {
+                labels: Object.keys(typeCount),
+                datasets: [{
+                    data: Object.values(typeCount),
+                    backgroundColor: ['#7c3aed', '#eab308', '#0ea5e9'],
+                    borderWidth: 0, hoverOffset: 5, borderRadius: 4
+                }]
+            },
+            options: {
+                responsive: true, maintainAspectRatio: false, cutout: '75%',
+                plugins: { legend: { position: 'right', labels: { usePointStyle: true, boxWidth: 6 } } }
+            }
+        });
+
+        // 8. Render Mock Demographics (Provinces)
+        // Mock data logic based on total applicants
+        const mockProvinces = ['บุรีรัมย์', 'สุรินทร์', 'ศรีสะเกษ', 'นครราชสีมา', 'ร้อยเอ็ด'];
+        const mockProvData = [
+            Math.round(totalApplicants * 0.45),
+            Math.round(totalApplicants * 0.20),
+            Math.round(totalApplicants * 0.15),
+            Math.round(totalApplicants * 0.10),
+            Math.round(totalApplicants * 0.05)
+        ];
+        const ctxProv = document.getElementById('provinceChart').getContext('2d');
+        chartInstances.province = new Chart(ctxProv, {
+            type: 'bar',
+            data: {
+                labels: mockProvinces,
+                datasets: [{
+                    label: 'ผู้สมัคร (จำลอง)',
+                    data: mockProvData,
+                    backgroundColor: '#10b981', // emerald-500
+                    borderRadius: 4,
+                    barPercentage: 0.5
+                }]
+            },
+            options: {
+                responsive: true, maintainAspectRatio: false, indexAxis: 'y',
+                plugins: { legend: { display: false } },
+                scales: {
+                    x: { grid: { color: '#f1f5f9' }, border: { display: false } },
+                    y: { grid: { display: false } }
+                }
+            }
+        });
+    }
+
+    fetchData();
+  </script>
+</body>
+</html>
